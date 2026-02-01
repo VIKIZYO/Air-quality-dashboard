@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Property Air Quality</title>
+<style>
+:root{--bg:#0a0a0a;--card:#141414;--border:#222;--text:#fff;--dim:#888;--good:#22c55e;--warn:#eab308;--bad:#ef4444;--info:#3b82f6}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px}
+.header{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:var(--bg);border-bottom:1px solid var(--border);z-index:100}
+.logo{font-size:20px;font-weight:600}
+.status{font-size:12px;padding:6px 12px;border-radius:6px;display:flex;align-items:center;gap:6px}
+.status-live{background:rgba(34,197,94,0.15);color:var(--good)}
+.status-off{background:rgba(239,68,68,0.15);color:var(--bad)}
+.dot{width:8px;height:8px;border-radius:50%;animation:pulse 2s infinite}
+.dot-live{background:var(--good)}
+.dot-off{background:var(--bad)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.setup{padding:40px 20px;text-align:center}
+.setup-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:400px;margin:0 auto}
+.setup-title{font-size:18px;font-weight:600;margin-bottom:16px}
+.setup-input{width:100%;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:16px;margin-bottom:12px}
+.setup-btn{width:100%;padding:14px;background:var(--info);border:none;border-radius:8px;color:#fff;font-weight:600;font-size:16px;cursor:pointer}
+.setup-error{color:var(--bad);font-size:14px;margin-top:12px}
+.setup-hint{color:var(--dim);font-size:13px;margin-top:16px;line-height:1.5}
+.main{padding:16px}
+.updated{text-align:center;color:var(--dim);font-size:13px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.room{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px}
+.room-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.room-name{font-size:18px;font-weight:600}
+.room-status{font-size:12px;padding:4px 10px;border-radius:6px}
+.room-online{background:rgba(34,197,94,0.15);color:var(--good)}
+.room-offline{background:rgba(239,68,68,0.15);color:var(--bad)}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.metric{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.metric-value{font-size:28px;font-weight:300}
+.metric-label{font-size:11px;color:var(--dim);text-transform:uppercase;margin-top:4px}
+.metric-status{font-size:12px;font-weight:600;margin-top:6px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.stat{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
+.stat-label{font-size:11px;color:var(--dim)}
+.stat-value{font-size:15px;font-weight:600;margin-top:4px}
+.airflow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.airflow-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.airflow-label{font-size:11px;color:var(--dim)}
+.airflow-value{font-size:24px;font-weight:600;color:var(--good);margin-top:4px}
+.airflow-unit{font-size:12px;color:var(--dim)}
+.airflow-off .airflow-value{color:var(--dim)}
+.modes{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.mode{font-size:12px;padding:6px 12px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--dim)}
+.mode-on{background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.3);color:var(--good)}
+.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.weather{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:20px}
+.weather-item{display:flex;align-items:center;gap:8px}
+.weather-value{font-size:18px;font-weight:600}
+.weather-label{font-size:12px;color:var(--dim)}
+.no-data{text-align:center;padding:60px 20px;color:var(--dim)}
+.no-data-icon{font-size:48px;margin-bottom:16px}
+.footer{text-align:center;padding:20px;color:var(--dim);font-size:12px}
+@media(max-width:500px){.metrics,.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="header">
+<div class="logo">🏠 Property Monitor</div>
+<div class="status status-off" id="connStatus"><span class="dot dot-off"></span><span id="connText">Offline</span></div>
+</div>
+
+<div id="setupView" class="setup">
+<div class="setup-box">
+<div class="setup-title">Connect to Property</div>
+<input type="text" id="clientId" class="setup-input" placeholder="Enter Client ID (e.g. e30a8912)">
+<button class="setup-btn" onclick="connect()">Connect</button>
+<div id="setupError" class="setup-error"></div>
+<div class="setup-hint">
+Ask the property owner for the Client ID.<br>
+It's shown when the dashboard starts:<br>
+<code style="background:var(--bg);padding:4px 8px;border-radius:4px;margin-top:8px;display:inline-block">Client ID: xxxxxxxx</code>
+</div>
+</div>
+</div>
+
+<div id="dataView" style="display:none">
+<div class="main">
+<div class="weather" id="weather"></div>
+<div class="updated" id="updated">Loading...</div>
+<div class="grid" id="grid"></div>
+</div>
+<div class="footer">Data refreshes every 30 seconds • Read-only view</div>
+</div>
+
+<script>
+var FIREBASE_URL = "https://air-quality-monitor-9485c-default-rtdb.firebaseio.com";
+var clientId = localStorage.getItem("landlordClientId") || "";
+var data = null;
+
+var SPEED_MAP = [0, 5, 14, 21, 32, 52, 70];
+function toM3h(level) {
+  var n = parseInt(level, 10);
+  if (isNaN(n) || n < 0) return 0;
+  if (n > 6) return 70;
+  return SPEED_MAP[n];
+}
+
+function co2St(v){return v<600?{t:"Fresh",c:"good"}:v<800?{t:"Good",c:"good"}:v<1000?{t:"Moderate",c:"warn"}:{t:"High",c:"bad"};}
+function vocSt(v){return v<50?{t:"Good",c:"good"}:v<100?{t:"Elevated",c:"warn"}:{t:"High",c:"bad"};}
+function humSt(h){return h<30?{t:"Dry",c:"warn"}:h<60?{t:"Good",c:"good"}:h<70?{t:"High",c:"warn"}:{t:"Very High",c:"bad"};}
+function tmpSt(t){return t<16?{t:"Cold",c:"warn"}:t<19?{t:"Cool",c:"good"}:t<24?{t:"Comfort",c:"good"}:t<27?{t:"Warm",c:"warn"}:{t:"Hot",c:"bad"};}
+function dew(t,h){var a=17.27,b=237.7;return(b*((a*t)/(b+t)+Math.log(h/100)))/(a-((a*t)/(b+t)+Math.log(h/100)));}
+function condSt(t,h){var d=t-dew(t,h);return d>10?{t:"Low",c:"good"}:d>5?{t:"Medium",c:"warn"}:d>3?{t:"High",c:"bad"}:{t:"Critical",c:"bad"};}
+function mouldSt(h){return h>75?{t:"High",c:"bad"}:h>65?{t:"Medium",c:"warn"}:{t:"Low",c:"good"};}
+
+if(clientId) {
+  document.getElementById("clientId").value = clientId;
+  connect();
+}
+
+function connect() {
+  clientId = document.getElementById("clientId").value.trim();
+  if(!clientId) {
+    document.getElementById("setupError").textContent = "Please enter a Client ID";
+    return;
+  }
+  
+  document.getElementById("setupError").textContent = "Connecting...";
+  
+  fetch(FIREBASE_URL + "/clients/" + clientId + ".json")
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if(d && d.devices) {
+        localStorage.setItem("landlordClientId", clientId);
+        document.getElementById("setupView").style.display = "none";
+        document.getElementById("dataView").style.display = "block";
+        setConnected(true);
+        processData(d);
+        setInterval(fetchData, 30000);
+      } else {
+        document.getElementById("setupError").textContent = "Client ID not found or no data";
+      }
+    })
+    .catch(function(e) {
+      document.getElementById("setupError").textContent = "Connection failed. Check ID and try again.";
+    });
+}
+
+function fetchData() {
+  fetch(FIREBASE_URL + "/clients/" + clientId + ".json")
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if(d) {
+        setConnected(true);
+        processData(d);
+      } else {
+        setConnected(false);
+      }
+    })
+    .catch(function(e) {
+      setConnected(false);
+    });
+}
+
+function setConnected(connected) {
+  var el = document.getElementById("connStatus");
+  var txt = document.getElementById("connText");
+  if(connected) {
+    el.className = "status status-live";
+    el.innerHTML = '<span class="dot dot-live"></span><span>Live</span>';
+  } else {
+    el.className = "status status-off";
+    el.innerHTML = '<span class="dot dot-off"></span><span>Offline</span>';
+  }
+}
+
+function processData(d) {
+  data = d;
+  
+  // Weather
+  var wHtml = "";
+  if(d.weather) {
+    if(d.weather.temp !== undefined) wHtml += '<div class="weather-item"><span class="weather-value">' + Math.round(d.weather.temp) + '°C</span><span class="weather-label">Outside</span></div>';
+    if(d.weather.humidity !== undefined) wHtml += '<div class="weather-item"><span class="weather-value">' + d.weather.humidity + '%</span><span class="weather-label">Humidity</span></div>';
+    if(d.weather.pressure !== undefined) wHtml += '<div class="weather-item"><span class="weather-value">' + d.weather.pressure + '</span><span class="weather-label">hPa</span></div>';
+  }
+  document.getElementById("weather").innerHTML = wHtml || '<div class="weather-item"><span class="weather-label">Weather data not available</span></div>';
+  
+  // Updated time
+  var lastUpdate = d.last_update ? new Date(d.last_update * 1000) : new Date();
+  document.getElementById("updated").textContent = "Last updated: " + lastUpdate.toLocaleString();
+  
+  // Rooms
+  var devices = d.devices || {};
+  var names = d.names || {};
+  var ips = Object.keys(devices);
+  
+  if(!ips.length) {
+    document.getElementById("grid").innerHTML = '<div class="no-data"><div class="no-data-icon">📡</div>No devices found</div>';
+    return;
+  }
+  
+  var html = "";
+  for(var i = 0; i < ips.length; i++) {
+    var ip = ips[i];
+    var room = devices[ip];
+    if(!room) continue;
+    
+    var name = names[ip] || ip;
+    var online = room.online !== false && room.inside_temperature !== undefined;
+    
+    if(!online) {
+      html += '<div class="room"><div class="room-header"><span class="room-name">' + name + '</span><span class="room-status room-offline">Offline</span></div><div style="padding:30px;text-align:center;color:var(--dim)">Not responding</div></div>';
+      continue;
+    }
+    
+    var t = room.inside_temperature / 10;
+    var h = room.humidity || 0;
+    var co2 = room.co2 || 0;
+    var voc = room.voc || 0;
+    var outT = room.outside_temperature ? (room.outside_temperature / 10) : "--";
+    var p = room.air_pressure || "--";
+    
+    var tS = tmpSt(t);
+    var hS = humSt(h);
+    var cS = co2St(co2);
+    var vS = vocSt(voc);
+    var condS = condSt(t, h);
+    var mS = mouldSt(h);
+    
+    var inSpeed = room.supply ? room.supply.speed : 0;
+    var outSpeed = room.extract ? room.extract.speed : 0;
+    var inF = toM3h(inSpeed);
+    var outF = toM3h(outSpeed);
+    
+    html += '<div class="room">';
+    html += '<div class="room-header"><span class="room-name">' + name + '</span><span class="room-status room-online">Online</span></div>';
+    
+    html += '<div class="metrics">';
+    html += '<div class="metric"><div class="metric-value" style="color:#ff6b6b">' + t.toFixed(1) + '</div><div class="metric-label">Temp °C</div><div class="metric-status ' + tS.c + '">' + tS.t + '</div></div>';
+    html += '<div class="metric"><div class="metric-value" style="color:#00bfff">' + h + '%</div><div class="metric-label">Humidity</div><div class="metric-status ' + hS.c + '">' + hS.t + '</div></div>';
+    html += '<div class="metric"><div class="metric-value ' + cS.c + '">' + co2 + '</div><div class="metric-label">CO2 ppm</div><div class="metric-status ' + cS.c + '">' + cS.t + '</div></div>';
+    html += '<div class="metric"><div class="metric-value ' + vS.c + '">' + voc + '</div><div class="metric-label">VOC</div><div class="metric-status ' + vS.c + '">' + vS.t + '</div></div>';
+    html += '<div class="metric"><div class="metric-value" style="color:#f97316">' + outT + '</div><div class="metric-label">Outside °C</div></div>';
+    html += '<div class="metric"><div class="metric-value" style="color:#eab308">' + p + '</div><div class="metric-label">hPa</div></div>';
+    html += '</div>';
+    
+    html += '<div class="stats">';
+    html += '<div class="stat"><div class="stat-label">Condensation</div><div class="stat-value ' + condS.c + '">' + condS.t + '</div></div>';
+    html += '<div class="stat"><div class="stat-label">Mould Risk</div><div class="stat-value ' + mS.c + '">' + mS.t + '</div></div>';
+    html += '<div class="stat"><div class="stat-label">Air Quality</div><div class="stat-value ' + vS.c + '">' + vS.t + '</div></div>';
+    html += '</div>';
+    
+    html += '<div class="airflow">';
+    html += '<div class="airflow-box' + (inF ? '' : ' airflow-off') + '"><div class="airflow-label">Fresh In (Spd ' + inSpeed + ')</div><div class="airflow-value">' + (inF || 'OFF') + '</div>' + (inF ? '<div class="airflow-unit">m³/h</div>' : '') + '</div>';
+    html += '<div class="airflow-box' + (outF ? '' : ' airflow-off') + '"><div class="airflow-label">Stale Out (Spd ' + outSpeed + ')</div><div class="airflow-value">' + (outF || 'OFF') + '</div>' + (outF ? '<div class="airflow-unit">m³/h</div>' : '') + '</div>';
+    html += '</div>';
+    
+    html += '<div class="modes">';
+    html += '<div class="mode' + (room.auto ? ' mode-on' : '') + '">Auto</div>';
+    html += '<div class="mode' + (room.auto_plus ? ' mode-on' : '') + '">Auto+</div>';
+    html += '<div class="mode' + (room.heater ? ' mode-on' : '') + '">Heat</div>';
+    html += '<div class="mode' + (room.winter ? ' mode-on' : '') + '">Winter</div>';
+    html += '</div>';
+    
+    html += '</div>';
+  }
+  
+  document.getElementById("grid").innerHTML = html;
+}
+
+// Disconnect button (long press on logo)
+var pressTimer;
+document.querySelector(".logo").addEventListener("mousedown", function() {
+  pressTimer = setTimeout(function() {
+    if(confirm("Disconnect from this property?")) {
+      localStorage.removeItem("landlordClientId");
+      location.reload();
+    }
+  }, 1500);
+});
+document.querySelector(".logo").addEventListener("mouseup", function() {
+  clearTimeout(pressTimer);
+});
+document.querySelector(".logo").addEventListener("mouseleave", function() {
+  clearTimeout(pressTimer);
+});
+</script>
+</body>
+</html>
